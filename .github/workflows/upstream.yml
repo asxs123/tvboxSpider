@@ -60,7 +60,9 @@ jobs:
           fi
         }
         (
-          git_clone https://github.com/FongMi/CatVodSpider
+          git_clone https://github.com/FongMi/CatVodSpider temp-dir
+          mv temp-dir/* temp-dir/.[^.]* .
+          rm -rf temp-dir
         )
         
     - name: Apply 应用
