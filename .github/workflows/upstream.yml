@@ -1,0 +1,86 @@
+name: Merge-upstream 合并上游
+on:
+  # 当代码推送到仓库时触发。
+  # push:
+  #   # 指定文件路径会触发工作流程
+  #   paths:
+  #     - '.github/workflows/upstream.yml'
+  #     - '.gitignore'
+  #     - '.github/diy/**'
+  # # 按计划定期触发，例如每 12 小时一次。
+  # schedule:
+  #   - cron: 0 */12 * * *
+  # 允许手动触发工作流程。
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'ssh'
+        required: false
+        default: 'false'
+  # # 当仓库被关注时触发。
+  # watch:
+  #   types: started
+  # # 通过外部事件触发。
+  # repository_dispatch:
+
+jobs:
+  merge:
+    runs-on: Ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+      with:
+        fetch-depth: 0
+    
+    - name: Set git identity 设置git标识
+      run : |
+        git config --global user.email "54346276+asxs123@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        sudo timedatectl set-timezone "Asia/Shanghai"
+
+    - name: Syn upstream  同步上游
+      run: |
+        # 启用扩展的模式匹配
+        shopt -s extglob
+        # 关闭脚本中的错误终止
+        set +e
+        # 从缓存中删除所有文件,不显示任何输出
+        git rm -r --cache * >/dev/null 2>&1 &
+        # 删除除 .github/diy 以外的所有文件夹。find 查找当前目录下的所有文件夹，-maxdepth 0 只搜索当前目录，-type d 只搜索文件夹，! -name ".github/diy" 排除名为 .github/diy 的文件夹。
+        rm -rf `find ./* -maxdepth 0 -type d ! -name ".github/diy"` >/dev/null 2>&1
+        function git_clone() {
+          # 克隆指定仓库 --depth 1 只克隆最近一次提交 $1 和 $2 是函数的参数，分别表示仓库 URL 和目标目录。
+          git clone --depth 1 $1 $2
+          if [ "$?" != 0 ]; then
+            # 命令执行失败,输出错误信息,获取当前进程的 PID,终止当前进程
+            echo "error on $1"
+            pid="$( ps -q $$ )"
+            kill $pid
+          fi
+        }
+        (
+          git_clone https://github.com/FongMi/CatVodSpider
+        )
+        
+    - name: Apply 应用
+      run: |
+        # 定义了一个数组 Emoji，其中包含了多个不同的 emoji 表情
+        Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
+        # 将当前目录下的所有文件添加到 Git 暂存区
+        git add .
+        # 创建一个提交，包含了随机选择的 emoji 和当前日期时间作为提交信息
+        git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+        # 撤销上一次提交，但保留更改
+        git reset --soft HEAD^
+        git add .
+        git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+        # 强制推送更改到远程仓库
+        git push -f
+
+    - name: Delete workflow runs 删除工作流运行
+      uses: Mattraks/delete-workflow-runs@main
+      continue-on-error: true
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
